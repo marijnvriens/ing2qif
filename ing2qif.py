@@ -54,8 +54,7 @@ class QifEntries(object):
         """
         data = ["!Type:Bank"]
         for e in self._entries:
-#            if len(e._memo()) > 32:
-                data.append(e.serialize())
+            data.append(e.serialize())
         return "\n".join(data)
 
 
@@ -80,6 +79,39 @@ class QifEntry(object):
         """
         return "\n".join(self._data)
 
+    def _memo_geldautomaat(self, mededelingen, omschrijving):
+        if omschrijving.startswith('ING>') or omschrijving.startswith('OPL. CHIPKNIP'):
+            memo = omschrijving
+        else:
+            memo = mededelingen[:32]
+        return memo
+
+    def _memo_incasso(self, mededelingen, omschrijving):
+        if omschrijving.startswith('SEPA Incasso') or mededelingen.startswith('SEPA Incasso'):
+            s = mededelingen.index('Naam: ')+6
+            e = mededelingen.index('Kenmerk: ')
+            return  mededelingen[s:e]
+
+    def _memo_internetbankieren(self, mededelingen, omschrijving):
+        try:
+            s = mededelingen.index('Naam: ')+6
+            if "Omschrijving:" in mededelingen:
+                e = mededelingen.index('Omschrijving: ')
+            else:
+                e = mededelingen.index('IBAN: ')
+            return  mededelingen[s:e]
+        except ValueError:
+            return None
+
+    def _memo_diversen(self, mededelingen, omschrijving):
+        return mededelingen[:64]
+
+    def _memo_verzamelbetaling(self, mededelingen, omschrijving):
+        if 'Naam: ' in mededelingen:
+            s = mededelingen.index('Naam: ')+6
+            e = mededelingen.index('Kenmerk: ')
+            return  mededelingen[s:e]
+
     def _memo(self):
         """
         Decide what the memo field should be. Try to keep it as sane as possible. If unknown type, include all data.
@@ -89,22 +121,28 @@ class QifEntry(object):
         mededelingen = self._entry['Mededelingen']
         omschrijving = self._entry['Naam / Omschrijving']
 
-        # The default memo value. Basically all text.
-        memo = "%s %s" % (self._entry['Mededelingen'], self._entry['Naam / Omschrijving'])
+        memo = None
+        try:
+            memo_method = { # Depending on the mutatie_soort, switch memo generation method.
+                'Diversen': self._memo_diversen,
+                'Betaalautomaat': self._memo_geldautomaat,
+                'Geldautomaat': self._memo_geldautomaat,
+                'Incasso': self._memo_incasso,
+                'Internetbankieren': self._memo_internetbankieren,
+                'Overschrijving': self._memo_internetbankieren,
+                'Verzamelbetaling': self._memo_verzamelbetaling,
+            }[mutatie_soort]
+            memo = memo_method(mededelingen, omschrijving)
+        except KeyError:
+            pass
+        finally:
+            if memo is None:
+                # The default memo value. All the text.
+                memo = "%s %s" % (self._entry['Mededelingen'], self._entry['Naam / Omschrijving'])
+        if self._entry_type():
+            return "%s %s" % (self._entry_type(), memo)
+        return memo.strip()
 
-        if mutatie_soort == 'Betaalautomaat':
-            memo = mededelingen[:32]
-        elif mutatie_soort == 'Geldautomaat':
-            if omschrijving.startswith('ING>') or omschrijving.startswith('OPL. CHIPKNIP'):
-                memo = omschrijving
-            else:
-                memo = mededelingen[:32]
-        elif mutatie_soort == 'Incasso':
-            if omschrijving.startswith('SEPA Incasso'):
-                s = mededelingen.index('Naam: ')
-                e = mededelingen.index('Kenmerk: ')
-                memo = mededelingen[s:e]
-        return memo
 
     def _amount_format(self):
         if self._entry['Af Bij'] == 'Bij':
