@@ -7,13 +7,16 @@ Goal:
 Make it easy to keep GnuCash up to date. Some transaction details are lost to make matching work better.
 This may or may not be acceptable for you.
 
+It's based around the Dutch ING statements.
+
 Usage:
 ------
 
  $ python ing2qif.py statements.csv > statements.qif
 
-Note: This was designed around statements from ING in The Netherlands.
-Note 2: Other then suffering the ING statement format, there is no relation with ING
+* Note: This was designed around statements from ING in The Netherlands.
+
+* Note 2: Other then suffering the ING statement format, there is no relation with ING
 
 Licence:
 --------

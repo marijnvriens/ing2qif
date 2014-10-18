@@ -6,9 +6,9 @@
 # https://github.com/Gnucash/gnucash/blob/master/src/import-export/qif-imp/file-format.txt
 # https://en.wikipedia.org/wiki/Quicken_Interchange_Format
 
-import sys
 import csv
 import itertools
+import argparse
 
 class Entry(object):
     """
@@ -173,17 +173,27 @@ class QifEntry(object):
             return None
 
 
-def main(filedescriptor):
+def main(filedescriptor, start, number):
     qif = QifEntries()
     c = 0
     for entry in CsvEntries(filedescriptor):
-        qif.addEntry(entry)
-#        if c > 10:
-#            break
         c += 1
+        if c >= start:
+            qif.addEntry(entry)
+            if number and c > start+number-2:
+               break
     print qif.serialize()
 
+def parse_cmdline():
+    parser = argparse.ArgumentParser(description="Convert ING banking statements in CSV format to QIF file for GnuCash.")
+    parser.add_argument("csvfile", metavar="CSV_FILE", help="The CSV file with banking statements.")
+    parser.add_argument("--start", type=int, metavar="NUMBER", default=0,
+                        help="The statement you want to start conversion at.")
+    parser.add_argument("--number", type=int, metavar="NUMBER", help="The number of startments to convert")
+    args = parser.parse_args()
+    return args
+
 if __name__ == '__main__':
-    fn = sys.argv[1]
-    fd = open(fn, 'rb')
-    main(fd)
+    args = parse_cmdline()
+    fd = open(args.csvfile, 'rb')
+    main(fd, args.start, args.number)
