@@ -80,7 +80,9 @@ class QifEntry(object):
         return "\n".join(self._data)
 
     def _memo_geldautomaat(self, mededelingen, omschrijving):
-        if omschrijving.startswith('ING>') or omschrijving.startswith('OPL. CHIPKNIP'):
+        if omschrijving.startswith('ING>') or \
+                omschrijving.startswith('ING BANK>') or \
+                omschrijving.startswith('OPL. CHIPKNIP'):
             memo = omschrijving
         else:
             memo = mededelingen[:32]
@@ -88,7 +90,10 @@ class QifEntry(object):
 
     def _memo_incasso(self, mededelingen, omschrijving):
         if omschrijving.startswith('SEPA Incasso') or mededelingen.startswith('SEPA Incasso'):
-            s = mededelingen.index('Naam: ')+6
+            try:
+                s = mededelingen.index('Naam: ')+6
+            except:
+                raise Exception(mededelingen, omschrijving)
             e = mededelingen.index('Kenmerk: ')
             return  mededelingen[s:e]
 
@@ -170,8 +175,12 @@ class QifEntry(object):
 
 def main(filedescriptor):
     qif = QifEntries()
+    c = 0
     for entry in CsvEntries(filedescriptor):
         qif.addEntry(entry)
+#        if c > 10:
+#            break
+        c += 1
     print qif.serialize()
 
 if __name__ == '__main__':
